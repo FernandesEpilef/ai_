@@ -1,29 +1,44 @@
 from typing import List
 
 
-def chunk_text(text: str, chunk_size: int = 800, overlap: int = 50) -> List[str]:
-    if chunk_size <= 0:
-        raise ValueError("chunk_size deve ser maior que zero")
-    if overlap < 0:
-        raise ValueError("overlap não pode ser negativo")
-    if overlap >= chunk_size:
-        raise ValueError("overlap deve ser menor que chunk_size")
+def chunk_text(
+    text: str,
+    chunk_size: int = 500,
+    overlap: int = 100
+) -> List[str]:
 
-    text = text.strip()
-    if not text:
-        return []
+    words = text.split()
 
     chunks = []
-    start = 0
-    step = chunk_size - overlap
 
-    while start < len(text):
-        end = start + chunk_size
-        chunk = text[start:end].strip()
+    current_chunk = []
 
-        if chunk:
+    current_length = 0
+
+    for word in words:
+
+        current_chunk.append(word)
+
+        current_length += len(word) + 1
+
+        if current_length >= chunk_size:
+
+            chunk = " ".join(current_chunk)
+
             chunks.append(chunk)
 
-        start += step
+            overlap_words = current_chunk[-20:]
+
+            current_chunk = overlap_words
+
+            current_length = sum(
+                len(w) + 1 for w in current_chunk
+            )
+
+    if current_chunk:
+
+        chunks.append(
+            " ".join(current_chunk)
+        )
 
     return chunks

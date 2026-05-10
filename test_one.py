@@ -1,4 +1,4 @@
-from src.loarders import load_document
+from src.loaders import load_document
 from src.chunking import chunk_text
 
 
