@@ -2,7 +2,7 @@ from transformers import pipeline
 
 generator = pipeline(
     "text-generation",
-    model="TinyLlama/TinyLlama-1.1B-Chat-v1.0"
+    model="microsoft/Phi-3-mini-4k-instruct"
 )
 
 def ask_llm(context, question):
