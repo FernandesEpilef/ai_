@@ -50,3 +50,52 @@ Digite sua pergunta: quais os problemas de comunicação que aparecem?
 
 RESPOSTA:
 Os principais problemáticos da sua forma única são claramente identificados pelo autor do trecho original; ele reconhece seu próprio papel nas interrupções das suas atividades diárias devidas às exigências energéticas dos seus 'amigos'. Ele também destaca inadvertidamente alguns pontos onde parece existir desconformidade ou inconsistência dentro de si mesmo (talvez por causa discreta) quanto aos padrões normativos estabelecidos pelas convencionais expectativas sociais - especialmente aquelas associadas á romance/casamentos ('chegue' até certeza). Este indíduo aponta então algo semelhante anormality of the nature and depth that characterizes its own communication style when compared to other types like friendships or romances where it seems there’d be more reciprocity & openness expected from both parties involved which this person may not always deliver due their personal issues around managing emotions effectively with others leading potentially towards unbalanced relationships dynamic dynamics within these interactions hence causing friction between individuals over time especially if left without proper attention paid toward understanding
+
+
+Digite sua pergunta: com base nos textos, qual o tipo de relação que os envolvidos possui?
+[transformers] Both `max_new_tokens` (=300) and `max_length`(=20) seem to have been set. `max_new_tokens` will take precedence. Please refer to the documentation for more information. (https://huggingface.co/docs/transformers/main/en/main_classes/text_generation)
+
+RESPOSTA:
+Resultado da análise do conteúdo apresentado acima podem geralmente estar associados aos seguintes temas ou aspectos relevantes nas interações humanas sociais (relações):
+1) **Diferenças Individuais** - As diferenças individuais são reconhecidas pela necessidade dos indivíduos expressarem suas perspectivas únicas dentro de sua dinâmica relacional; por exemplo, alguém poderia perceber discrepâncias quanto ao nível desejado de proximidade social ("Ele quer algo diferente"). Isso sugere variações individualistas influenciam expectativas relativas à intimidade física/psicológica ('ele' parece preferir maior distanciamento).  
+2) ) **Comunicação Inexistente / Inconsistentes** - Há prevalências tanto de ausência totalizada até inconsistencias significativas referentes à troca mensagens verbais('...falta certeza'). Essa lacuna implica problemas potenciais num processo relativo 'conversabilidades', onde cada parte deve contribuir igualmente pelas discussões internacionais(ou externas), sem deixar espaço aberto apenas pra observar passivamente outros participantes.(...)Ainda assim existiu anteriormente harmonias(...); tal
+
+CHUNKS RECUPERADOS:
+
+[CHUNK 1]
+é a base de todas as relações. Claro que há situações que pedem mais comunicação e outras que pedem menos. Acredito que o que possa faltar na gente é uma certa coerência entre o que é dito e o que é falado. Talvez possa ser isso. Talvez possa ser outra coisa. Não sei. Mas, como você já disse – e eu sei – , o problema sou eu. A situação na qual nos encontramos ontem não foi uma boa situação. E não
+
+[CHUNK 2]
+é sobre nos vermos para ficar no mesmo enredo, Oli. Não é que eu sempre vou querer ser o “centro” das atenções. Não é sobre isso. Não mais falarei, contigo, sobre esse assunto de amizades. Trate-me como bem quiser e quando quiser. Eu devo, somente, aceitar, né isso? Antes havia uma sintonia. Se quiseres explicar e contextualizar o motivo pelo quando nunca estivemos em sintonia, fique à vontade. Também
+
+[CHUNK 3]
+reciprocidade. Uma outra dúvida: quando se relacionas comigo, se relacionas de verdade? Por mais que algumas questões resolva, eu, na terapia, eu sempre terei de me comunicar contigo. Comunicação é chave de qualquer relação – você já me disse sobre. E uma relação é entre duas pessoas. E precisa-se de conversa para que haja resolução. Descanse. Ficarei esperando as respostas, os comentários.... Ficarei
+
+[CHUNK 4]
+você e alguma outra pessoa, sinto muitas coisas – que você já está cansada de saber. Não me comparo porque quero, mas para entender o motivo que para fulano é uma coisa e para mim, outra. Às vezes é muito difícil te entender. Sim, sei muito bem que já comentaste sobre. A mencionei porque precisamos disse de volta. Precisamos entrar, novamente, em sintonia. Numa frequência boa para os dois. Na teoria
+
+Digite sua pergunta: 
+
+
+
+Digite sua pergunta: há sinais de afastamento emocional?
+[transformers] Both `max_new_tokens` (=300) and `max_length`(=20) seem to have been set. `max_new_tokens` will take precedence. Please refer to the documentation for more information. (https://huggingface.co/docs/transformers/main/en/main_classes/text_generation)
+
+RESPOSTA:
+Resultado do processador (semânticamente relacionados): Afastamento Emotivo; Comunicação Inadequada; Coesão Interpessoal Falta; Problematização Individual vs Relacionamentos Sensível às Novas Experiências
+
+CHUNKS RECUPERADOS:
+
+[CHUNK 1]
+é a base de todas as relações. Claro que há situações que pedem mais comunicação e outras que pedem menos. Acredito que o que possa faltar na gente é uma certa coerência entre o que é dito e o que é falado. Talvez possa ser isso. Talvez possa ser outra coisa. Não sei. Mas, como você já disse – e eu sei – , o problema sou eu. A situação na qual nos encontramos ontem não foi uma boa situação. E não
+
+[CHUNK 2]
+não algo que sempre tem um problema, um “e se”. Você se comparar com outra pessoa da minha vida é a coisa mais ridícula que existe, e você deveria tratar na terapia o porquê você sempre vai querer ser o “centro” das atenções na vida de quem ama. E porque não sabe separar as coisas. É bom você tentar chegar em algum lugar nisso, porque como já bem pontuei eu não suporto mais ouvir esse tópico, porque
+
+[CHUNK 3]
+– , o problema sou eu. A situação na qual nos encontramos ontem não foi uma boa situação. E não a aproveitamos, foi, somente, sobre cricri. Enfim.
+
+[CHUNK 4]
+A mencionei porque precisamos disse de volta. Precisamos entrar, novamente, em sintonia. Numa frequência boa para os dois. Na teoria tudo funcionaria perfeitamente. Porém, na prática, isso não ocorre. Mesmo que eu lute bastante, nunca é o suficiente. Não acho/sinto que arrumei conforto nesse desconforto todo. A terapia, assim como o psiquiatra são ações novas, ainda, para mim. E lembra-te que, antigamente,
+
+Digite sua pergunta: 

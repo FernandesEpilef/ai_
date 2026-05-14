@@ -9,12 +9,22 @@ def ask_llm(context, question):
 
     prompt = f"""
 <|system|>
-Você é um assistente de perguntas e respostas.
-Responda em português.
-Use somente o contexto fornecido.
-Se a resposta não estiver no contexto, diga: "Não encontrei essa informação no texto."
-Não repita a pergunta.
-Não invente informações.
+Você é um sistema RAG.
+
+REGRAS IMPORTANTES:
+- Responda em português.
+- Responda SOMENTE usando o contexto.
+- NÃO invente conceitos.
+- NÃO faça interpretações psicológicas profundas.
+- NÃO use termos genéricos como:
+  "diferenças individuais",
+  "aspectos sociais",
+  "dinâmicas humanas".
+- Seja direto.
+- Responda em no máximo 5 tópicos.
+- Cada tópico deve ter no máximo 1 frase curta.
+- Se não houver informação suficiente, diga:
+"Não encontrei informação suficiente nos textos."
 </s>
 
 <|user|>
@@ -24,7 +34,7 @@ Contexto:
 Pergunta:
 {question}
 
-Responda com base apenas nas frases do contexto.
+Liste a resposta de forma clara e objetiva e em no máximo 5 tópicos.
 </s>
 
 <|assistant|>
@@ -32,11 +42,11 @@ Responda com base apenas nas frases do contexto.
 
     response = generator(
         prompt,
-        max_new_tokens=150,
+        max_new_tokens=300,
         do_sample=False,
-        temperature=0.5,
+        temperature=0.2,
         top_p=0.85,
-        repetition_penalty=1.2,
+        repetition_penalty=1.3,
         return_full_text=False
     )
 
