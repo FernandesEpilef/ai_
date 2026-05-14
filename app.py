@@ -3,63 +3,89 @@ from pathlib import Path
 from src.loaders import load_document
 from src.chunking import chunk_text
 
-from src.vector_store import add_chunks
+from src.vector_store import add_chunks, load_persisted_store
 from src.rag_pipeline import answer_question
+
+# Parâmetros de experimento: altere aqui para testar diferentes configurações.
+# Não é necessário editar src/chunking.py quando mudar CHUNK_SIZE ou OVERLAP aqui.
+CHUNK_SIZE = 500
+OVERLAP = 80
+TOP_K = 4
 
 
 def main():
 
     data_path = Path("./data")
 
-    all_chunks = []
-
     print("Carregando documentos...")
 
-    for file_path in data_path.iterdir():
+    index_loaded = load_persisted_store()
 
-        if file_path.suffix.lower() in [".pdf", ".txt"]:
+    if index_loaded:
+        print("Índice vetorial existente carregado.")
+    else:
+        all_chunks = []
 
-            print(f"\nProcessando: {file_path.name}")
+        for file_path in data_path.iterdir():
 
-            text = load_document(str(file_path))
+            if file_path.suffix.lower() in [".pdf", ".txt"]:
 
-            chunks = chunk_text(
-                text,
-                chunk_size=400,
-                overlap=80
-            )
+                print(f"\nProcessando: {file_path.name}")
 
-            all_chunks.extend(chunks)
+                text = load_document(str(file_path))
 
-            print(f"{len(chunks)} chunks gerados")
+                chunks = chunk_text(
+                    text,
+                    chunk_size=CHUNK_SIZE,
+                    overlap=OVERLAP
+                )
 
-    print("\nIndexando chunks...")
+                all_chunks.extend(chunks)
 
-    add_chunks(all_chunks)
+                print(f"{len(chunks)} chunks gerados")
 
-    print(f"\nTotal de chunks indexados: {len(all_chunks)}")
+        print("\nIndexando chunks...")
+
+        add_chunks(all_chunks)
+
+        print(f"Total de chunks indexados: {len(all_chunks)}")
+
+    history = []
+
+    print("\nDigite 'limpar histórico' para iniciar novo chat.")
+    print("Digite 'sair' para encerrar.\n")
 
     while True:
 
-        question = input("\nDigite sua pergunta: ")
+        question = input("Digite sua pergunta: ").strip()
 
-        if question.lower() == "sair":
+        if question.lower() in ["sair", "exit"]:
             break
+
+        if question.lower() in ["limpar histórico", "novo chat", "reset"]:
+            history.clear()
+            print("Histórico limpo. O próximo diálogo será tratado como novo chat.\n")
+            continue
+
+        if not question:
+            print("Pergunta vazia. Digite uma pergunta ou 'sair'.\n")
+            continue
 
         answer, retrieved_chunks = answer_question(
             question,
-            top_k=4
+            top_k=TOP_K,
+            history=history,
         )
 
         print("\nRESPOSTA:")
         print(answer)
 
-        # DEBUG OPCIONAL
         print("\nCHUNKS RECUPERADOS:")
-        #
         for i, chunk in enumerate(retrieved_chunks, start=1):
-             print(f"\n[CHUNK {i}]")
-             print(chunk[:800])
+            print(f"\n[CHUNK {i}]")
+            print(chunk[:800])
+
+        history.append({"question": question, "answer": answer})
 
 
 if __name__ == "__main__":

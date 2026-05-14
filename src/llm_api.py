@@ -1,17 +1,39 @@
-from transformers import pipeline, AutoTokenizer
+from transformers import AutoTokenizer, AutoModelForCausalLM
+import torch
 
-model_id = "microsoft/Phi-3-mini-4k-instruct"
+# Ajuste este bloco para testar outros modelos ou temperaturas.
+MODEL_ID = "microsoft/Phi-3-mini-4k-instruct"
+TEMPERATURE = 0.3
 
-tokenizer = AutoTokenizer.from_pretrained(model_id)
+tokenizer = AutoTokenizer.from_pretrained(MODEL_ID)
 
-generator = pipeline(
-    "text-generation",
-    model=model_id,
-    tokenizer=tokenizer,
-    device_map="auto"
-)
+model_kwargs = {"device_map": "auto"}
+if torch.cuda.is_available():
+    model_kwargs["torch_dtype"] = torch.float16
+    print("[INFO] GPU detectada. Usando CUDA com float16 para maior velocidade.")
+else:
+    model_kwargs["torch_dtype"] = torch.float32
+    print("[WARNING] GPU não detectada. Usando CPU (mais lento).")
 
-def ask_llm(context, question):
+model = AutoModelForCausalLM.from_pretrained(MODEL_ID, **model_kwargs)
+model.eval()
+
+
+def _model_device():
+    try:
+        return next(model.parameters()).device
+    except StopIteration:
+        return torch.device("cpu")
+
+def ask_llm(context, question, history=None):
+    history_text = ""
+    if history:
+        history_lines = []
+        for turn in history:
+            history_lines.append(
+                f"Pergunta: {turn['question']}\nResposta: {turn['answer']}"
+            )
+        history_text = "\n\nHistórico de conversa:\n" + "\n\n".join(history_lines)
 
     messages = [
         {
@@ -30,35 +52,46 @@ def ask_llm(context, question):
         },
         {
             "role": "user",
-            "content": f"""
-Contexto:
-{context}
-
-Pergunta:
-{question}
-
-Responda de forma objetiva e curta.
-"""
+            "content": (
+                f"Contexto:\n{context}\n\n"
+                f"{history_text}\n\n"
+                "Pergunta:\n"
+                f"{question}\n\n"
+                "Responda de forma objetiva e curta."
+            )
         }
     ]
 
-    # Template correto para Phi-3
     prompt = tokenizer.apply_chat_template(
         messages,
         tokenize=False,
         add_generation_prompt=True
     )
 
-    response = generator(
-        prompt,
-        max_new_tokens=120,
-        do_sample=True,
-        temperature=0.3,
-        top_p=0.85,
-        repetition_penalty=1.15,
-        eos_token_id=tokenizer.eos_token_id,
-        pad_token_id=tokenizer.eos_token_id,
-        return_full_text=False
-    )
+    inputs = tokenizer(prompt, return_tensors="pt")
+    inputs = inputs.to(_model_device())
 
-    return response[0]["generated_text"].strip()
+    try:
+        output_ids = model.generate(
+            **inputs,
+            max_new_tokens=120,
+            temperature=TEMPERATURE,
+            do_sample=True,
+            top_p=0.85,
+            repetition_penalty=1.15,
+            eos_token_id=tokenizer.eos_token_id,
+            pad_token_id=tokenizer.eos_token_id,
+            use_cache=True
+        )
+
+        generated_ids = output_ids[0][inputs["input_ids"].shape[1]:]
+        text = tokenizer.decode(
+            generated_ids,
+            skip_special_tokens=True,
+            clean_up_tokenization_spaces=False
+        )
+
+        return text.strip()
+
+    except Exception as exc:
+        return f"Erro na geração de resposta: {exc}"
