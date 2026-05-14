@@ -48,18 +48,18 @@ def main():
 
         answer, retrieved_chunks = answer_question(
             question,
-            top_k=3
+            top_k=4
         )
 
         print("\nRESPOSTA:")
         print(answer)
 
         # DEBUG OPCIONAL
-        # print("\nCHUNKS RECUPERADOS:")
+        print("\nCHUNKS RECUPERADOS:")
         #
-        # for i, chunk in enumerate(retrieved_chunks, start=1):
-        #     print(f"\n[CHUNK {i}]")
-        #     print(chunk[:500])
+        for i, chunk in enumerate(retrieved_chunks, start=1):
+             print(f"\n[CHUNK {i}]")
+             print(chunk[:800])
 
 
 if __name__ == "__main__":
