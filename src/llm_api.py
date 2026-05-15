@@ -3,7 +3,7 @@ import torch
 
 # Ajuste este bloco para testar outros modelos ou temperaturas.
 MODEL_ID = "microsoft/Phi-3-mini-4k-instruct"
-TEMPERATURE = 0.3
+TEMPERATURE = 0.9
 
 tokenizer = AutoTokenizer.from_pretrained(MODEL_ID)
 

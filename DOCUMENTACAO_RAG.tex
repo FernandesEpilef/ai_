@@ -1,0 +1,1532 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[portuguese]{babel}
+\usepackage{geometry}
+\geometry{margin=1in}
+\usepackage{graphicx}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{tikz}
+\usetikzlibrary{shapes,arrows,positioning}
+
+\lstset{
+    language=Python,
+    basicstyle=\ttfamily\small,
+    breaklines=true,
+    keywordstyle=\color{blue},
+    commentstyle=\color{gray},
+    stringstyle=\color{red},
+    showstringspaces=false,
+    backgroundcolor=\color{lightgray!20},
+    frame=single
+}
+
+\title{\textbf{Documentação Completa do Sistema RAG} \\
+        \large Explicação Detalhada do Código e do Pipeline}
+\author{Documentação do Projeto Prático}
+\date{Maio de 2026}
+
+\begin{document}
+
+\maketitle
+
+\tableofcontents
+\newpage
+
+% ==================== SEÇÃO 1: INTRODUÇÃO ====================
+\section{Introdução ao RAG}
+
+\subsection{O que é RAG?}
+
+RAG significa \textbf{Retrieval-Augmented Generation} (Geração Aumentada por Recuperação).
+
+É uma arquitetura de sistema que combina duas coisas principais:
+
+\begin{enumerate}
+    \item \textbf{Recuperação}: Buscar informações relevantes em um banco de dados
+    \item \textbf{Geração}: Usar um modelo de linguagem para gerar respostas baseadas nessas informações
+\end{enumerate}
+
+\subsection{Por que usar RAG?}
+
+Modelos de linguagem como ChatGPT têm conhecimento geral, mas:
+
+\begin{itemize}
+    \item Não sabem sobre documentos específicos do usuário
+    \item Podem gerar informações incorretas (``alucinações'')
+    \item Não têm acesso a dados privados
+\end{itemize}
+
+RAG resolve isso:
+\begin{enumerate}
+    \item O usuário envia seus documentos (PDFs, TXTs)
+    \item O sistema indexa esses documentos
+    \item Quando o usuário pergunta algo, o sistema busca as partes relevantes dos documentos
+    \item O modelo gera uma resposta baseada APENAS nessas partes recuperadas
+\end{enumerate}
+
+\subsection{Vantagens}
+
+\begin{itemize}
+    \item \textbf{Precisão}: Respostas baseadas em informações reais do usuário
+    \item \textbf{Confiabilidade}: Menos alucinações porque há contexto real
+    \item \textbf{Privacidade}: Dados do usuário não saem do seu computador
+    \item \textbf{Atualização fácil}: Adicione novos documentos quando necessário
+\end{itemize}
+
+% ==================== SEÇÃO 2: PIPELINE RAG ====================
+\section{O Pipeline RAG - Fluxo Completo}
+
+\subsection{Visão Geral do Pipeline}
+
+O sistema RAG funciona em dois momentos:
+
+\begin{enumerate}
+    \item \textbf{Fase 1 - Indexação (Preparação)}: Processa e armazena documentos
+    \item \textbf{Fase 2 - Consulta (Uso)}: Responde perguntas usando os documentos armazenados
+\end{enumerate}
+
+\subsection{Diagrama do Pipeline}
+
+\begin{tikzpicture}[node distance=1.5cm]
+    % Fase de Indexação
+    \node (doc) [rectangle, draw, minimum width=2cm, minimum height=1cm] {Documentos\\(PDF, TXT)};
+    \node (load) [rectangle, draw, right of=doc] {Carregar\\Texto};
+    \node (chunk) [rectangle, draw, right of=load] {Dividir em\\Segmentos};
+    \node (emb) [rectangle, draw, right of=chunk] {Gerar\\Embeddings};
+    \node (store) [rectangle, draw, right of=emb] {Armazenar\\no Índice};
+    
+    \draw[->] (doc) -- (load);
+    \draw[->] (load) -- (chunk);
+    \draw[->] (chunk) -- (emb);
+    \draw[->] (emb) -- (store);
+    
+    % Fase de Consulta
+    \node (q) [rectangle, draw, below of=doc, yshift=-2cm] {Pergunta\\do Usuário};
+    \node (qemb) [rectangle, draw, right of=q] {Gerar Embedding\\da Pergunta};
+    \node (search) [rectangle, draw, right of=qemb] {Buscar\\Segmentos Similares};
+    \node (build) [rectangle, draw, right of=search] {Construir\\Prompt};
+    \node (llm) [rectangle, draw, right of=build] {LLM Gera\\Resposta};
+    \node (show) [rectangle, draw, right of=llm] {Mostrar\\Resposta};
+    
+    \draw[->] (q) -- (qemb);
+    \draw[->] (qemb) -- (search);
+    \draw[->] (search) -- (build);
+    \draw[->] (build) -- (llm);
+    \draw[->] (llm) -- (show);
+    
+    % Conexão entre fase 1 e 2
+    \draw[dashed] (store) -- (search);
+    
+    \node at (5, 0.5) {\textbf{FASE 1: Indexação}};
+    \node at (5, -2.5) {\textbf{FASE 2: Consulta}};
+\end{tikzpicture}
+
+\subsection{Detalhes de Cada Etapa}
+
+\subsubsection{Etapa 1: Ingestão de Dados}
+
+O sistema carrega documentos em formatos PDF ou TXT.
+
+\textbf{Por que múltiplos formatos?}
+\begin{itemize}
+    \item PDF: Comum para documentos formais, livros
+    \item TXT: Simples e universal
+\end{itemize}
+
+\subsubsection{Etapa 2: Segmentação (Chunking)}
+
+Documentos são divididos em pequenos pedaços chamados \textbf{chunks}.
+
+\textbf{Por que dividir?}
+\begin{itemize}
+    \item Modelos têm limite de tokens (palavras)
+    \item Chunks pequenos = busca mais precisa
+    \item Chunks com overlap = melhor contexto
+\end{itemize}
+
+Exemplo: Um documento com 10.000 palavras é dividido em 25 chunks de 400 palavras cada, com 80 palavras de sobreposição.
+
+\subsubsection{Etapa 3: Geração de Embeddings}
+
+Cada chunk é convertido em um \textbf{vetor numérico} (embedding).
+
+Um embedding é como uma ``impressão digital'' do texto que captura seu significado.
+
+\textbf{Exemplo simplificado:}
+\begin{itemize}
+    \item Texto 1: ``O gato subiu no telhado'' → Vetor [0.2, 0.8, -0.1, 0.5, ...]
+    \item Texto 2: ``O felino está no teto'' → Vetor [0.22, 0.79, -0.09, 0.48, ...]
+\end{itemize}
+
+Vetores similares = textos com significados similares.
+
+\subsubsection{Etapa 4: Armazenamento em Banco Vetorial}
+
+Os embeddings são armazenados em um \textbf{banco de dados vetorial} (FAISS).
+
+FAISS é rápido em buscas por similaridade: ``Qual embedding é mais próximo deste?''
+
+\subsubsection{Etapa 5: Recuperação}
+
+Quando o usuário faz uma pergunta:
+\begin{enumerate}
+    \item Gera-se o embedding da pergunta
+    \item Busca-se os K embeddings mais similares no banco
+    \item Retornam-se os chunks correspondentes (top-k)
+\end{enumerate}
+
+\subsubsection{Etapa 6: Construção do Prompt}
+
+Os chunks recuperados são inclusos em um prompt estruturado:
+
+\begin{lstlisting}
+Você é um sistema RAG.
+Responda SOMENTE usando o contexto fornecido.
+NÃO invente informações.
+
+Contexto:
+[Aqui vão os chunks recuperados]
+
+Pergunta:
+[Aqui vai a pergunta do usuário]
+
+Responda de forma objetiva e curta.
+\end{lstlisting}
+
+\subsubsection{Etapa 7: Geração de Resposta}
+
+Um LLM (Large Language Model) como Phi-3 processa o prompt e gera a resposta.
+
+A resposta é baseada APENAS nos chunks recuperados, não em conhecimento geral.
+
+% ==================== SEÇÃO 3: ESTRUTURA DO CÓDIGO ====================
+\section{Estrutura do Código}
+
+\subsection{Organização dos Arquivos}
+
+\begin{lstlisting}
+ai_/
+├── app.py                    # Arquivo principal
+├── src/
+│   ├── loaders.py            # Carrega PDFs e TXTs
+│   ├── chunking.py           # Divide texto em chunks
+│   ├── embeddings.py         # Gera embeddings
+│   ├── vector_store.py       # Gerencia banco vetorial
+│   ├── llm_api.py            # Integração com LLM
+│   └── rag_pipeline.py       # Orquestra o pipeline
+├── data/                      # Armazena documentos e índices
+└── experiment_plan.md        # Plano de testes
+\end{lstlisting}
+
+\subsection{Como os Arquivos se Conectam}
+
+\begin{tikzpicture}[node distance=2cm]
+    \node (app) [rectangle, draw] {app.py};
+    \node (load) [rectangle, draw, below left of=app] {loaders.py};
+    \node (chunk) [rectangle, draw, below of=app] {chunking.py};
+    \node (emb) [rectangle, draw, below right of=app] {embeddings.py};
+    \node (vs) [rectangle, draw, below of=emb] {vector\_store.py};
+    \node (llm) [rectangle, draw, below of=chunk] {llm\_api.py};
+    \node (rag) [rectangle, draw, below of=vs] {rag\_pipeline.py};
+    
+    \draw[->] (app) -- (load);
+    \draw[->] (app) -- (chunk);
+    \draw[->] (app) -- (vs);
+    \draw[->] (chunk) -- (emb);
+    \draw[->] (emb) -- (vs);
+    \draw[->] (app) -- (rag);
+    \draw[->] (rag) -- (vs);
+    \draw[->] (rag) -- (llm);
+\end{tikzpicture}
+
+% ==================== SEÇÃO 4: CADA ARQUIVO ====================
+\section{Explicação Detalhada de Cada Arquivo}
+
+\subsection{app.py - O Maestro}
+
+Este é o arquivo principal que controla tudo.
+
+\subsubsection{O que ele faz?}
+
+\begin{enumerate}
+    \item Carrega documentos da pasta \texttt{data/}
+    \item Processa e indexa os documentos (primeira vez)
+    \item Carrega índice existente (próximas vezes)
+    \item Inicia um loop interativo para perguntas
+    \item Mantém histórico de conversa
+\end{enumerate}
+
+\subsubsection{Variáveis de Configuração}
+
+\begin{lstlisting}
+CHUNK_SIZE = 400    # Tamanho de cada chunk em palavras
+OVERLAP = 80        # Sobreposição entre chunks
+TOP_K = 4           # Quantos chunks recuperar
+\end{lstlisting}
+
+\textbf{O que significa cada uma?}
+
+\begin{itemize}
+    \item \texttt{CHUNK\_SIZE = 400}: Cada pedaço do texto tem 400 palavras
+    \item \texttt{OVERLAP = 80}: Os pedaços se sobrepõem em 80 palavras
+    \item \texttt{TOP\_K = 4}: Quando o usuário pergunta, busca os 4 chunks mais relevantes
+\end{itemize}
+
+\subsubsection{Fluxo Principal}
+
+\begin{enumerate}
+    \item \textbf{Carregamento}: Tenta carregar índice antigo
+    \item \textbf{Se não existir}: Carrega documentos, divide em chunks, gera embeddings
+    \item \textbf{Se existir}: Pula direto para perguntas
+    \item \textbf{Loop de Perguntas}: Usuário digita pergunta → sistema responde
+    \item \textbf{Histórico}: Cada pergunta e resposta é guardada
+\end{enumerate}
+
+\subsubsection{Código Simplificado}
+
+\begin{lstlisting}
+# 1. Tentar carregar índice antigo
+if load_persisted_store():
+    print("Índice carregado!")
+else:
+    # 2. Se não existir, indexar documentos
+    for arquivo em data/:
+        texto = carregar_documento(arquivo)
+        chunks = dividir_em_chunks(texto)
+        gerar_embeddings(chunks)
+        armazenar(chunks)
+
+# 3. Loop de perguntas
+while True:
+    pergunta = input("Digite sua pergunta: ")
+    resposta, chunks = answer_question(pergunta, top_k=4)
+    print("Resposta:", resposta)
+    historico.append({pergunta, resposta})
+\end{lstlisting}
+
+% ---------- loaders.py ----------
+\subsection{loaders.py - O Leitor}
+
+Este arquivo extrai texto de documentos.
+
+\subsubsection{O que ele faz?}
+
+\begin{enumerate}
+    \item Carrega PDFs usando a biblioteca \texttt{fitz}
+    \item Carrega TXTs usando Python nativo
+    \item Limpa o texto (remove lixo, normaliza espaços)
+    \item Retorna texto pronto para processar
+\end{enumerate}
+
+\subsubsection{Funções Principais}
+
+\paragraph{load\_txt(file\_path)}
+\begin{itemize}
+    \item Entrada: caminho do arquivo TXT
+    \item Saída: conteúdo do texto
+    \item Exemplo: \texttt{``Olá mundo''} (simples)
+\end{itemize}
+
+\paragraph{load\_pdf(file\_path)}
+\begin{itemize}
+    \item Entrada: caminho do arquivo PDF
+    \item Processo: Abre o PDF, extrai texto de cada página
+    \item Saída: conteúdo de todas as páginas concatenadas
+    \item Exemplo: Um PDF com 10 páginas retorna todo o texto junto
+\end{itemize}
+
+\paragraph{clean\_text(text)}
+\begin{itemize}
+    \item Entrada: texto sujo
+    \item Limpeza:
+    \begin{itemize}
+        \item Remove caracteres nulos (\texttt{\textbackslash x00})
+        \item Remove marcas de ordem de byte (\texttt{\textbackslash ufeff})
+        \item Normaliza quebras de linha
+        \item Remove espaços extras
+    \end{itemize}
+    \item Saída: texto limpo
+\end{itemize}
+
+\paragraph{load\_document(file\_path)}
+\begin{itemize}
+    \item Função principal que coordena as outras
+    \item Verifica o tipo de arquivo (.pdf ou .txt)
+    \item Chama a função apropriada
+    \item Retorna texto limpo
+\end{itemize}
+
+\subsubsection{Exemplo de Uso}
+
+\begin{lstlisting}
+from src.loaders import load_document
+
+# Carregar um PDF
+texto = load_document("documento.pdf")
+print(texto)  # Retorna o texto do PDF
+
+# Carregar um TXT
+texto = load_document("arquivo.txt")
+print(texto)  # Retorna o conteúdo do TXT
+\end{lstlisting}
+
+% ---------- chunking.py ----------
+\subsection{chunking.py - O Divisor}
+
+Este arquivo divide texto em pedaços menores.
+
+\subsubsection{Por que dividir?}
+
+\begin{itemize}
+    \item Modelos têm limite de tokens (palavras)
+    \item Phi-3 pode processar ~4000 tokens
+    \item Um documento pode ter 100.000+ palavras
+    \item Solução: Dividir em chunks de 400 palavras
+\end{itemize}
+
+\subsubsection{Como funciona?}
+
+\begin{enumerate}
+    \item Divide o texto em palavras
+    \item Agrupa 400 palavras em um chunk
+    \item Quando atinge 400, salva o chunk
+    \item Pega as últimas 80 palavras e começa o próximo (overlap)
+    \item Continua até o fim do texto
+\end{enumerate}
+
+\subsubsection{Visualização}
+
+\begin{verbatim}
+Texto: [palavra1] [palavra2] ... [palavra400] [palavra401] ... [palavra480]
+                                    ↓
+Chunk 1: [palavra1 até palavra400]
+Overlap:                              [palavra321 até palavra400]
+                                                  ↓
+Chunk 2: [palavra321 até palavra720]
+Overlap:                                          [palavra641 até palavra720]
+                                                              ↓
+Chunk 3: [palavra641 até palavra1040]
+... e assim por diante
+\end{verbatim}
+
+\subsubsection{Função: chunk\_text}
+
+\begin{lstlisting}
+def chunk_text(text, chunk_size=400, overlap=80):
+    """
+    Divide um texto em chunks com sobreposição.
+    
+    Parâmetros:
+    - text: o texto a dividir
+    - chunk_size: tamanho de cada chunk em palavras
+    - overlap: quantas palavras da sobreposição
+    
+    Retorna:
+    - Lista de chunks (strings)
+    """
+    
+    # 1. Divide em palavras
+    palavras = text.split()
+    
+    # 2. Cria lista vazia para chunks
+    chunks = []
+    chunk_atual = []
+    
+    # 3. Loop por cada palavra
+    for palavra in palavras:
+        chunk_atual.append(palavra)
+        
+        # 4. Se atingiu o tamanho
+        if len(chunk_atual) >= chunk_size:
+            # 5. Salva o chunk
+            chunks.append(" ".join(chunk_atual))
+            
+            # 6. Pega as últimas N palavras para overlap
+            chunk_atual = chunk_atual[-overlap:]
+    
+    # 7. Se sobrou algo, salva
+    if chunk_atual:
+        chunks.append(" ".join(chunk_atual))
+    
+    return chunks
+\end{lstlisting}
+
+\subsubsection{Exemplo}
+
+\begin{lstlisting}
+texto = "palavra1 palavra2 palavra3 ... palavra500"
+chunks = chunk_text(texto, chunk_size=10, overlap=2)
+
+# Resultado:
+# chunks[0] = "palavra1 palavra2 ... palavra10"
+# chunks[1] = "palavra9 palavra10 palavra11 ... palavra20"
+# chunks[2] = "palavra19 palavra20 ... palavra30"
+# ... e assim por diante
+\end{lstlisting}
+
+% ---------- embeddings.py ----------
+\subsection{embeddings.py - O Vetorizador}
+
+Este arquivo transforma texto em vetores numéricos.
+
+\subsubsection{O que é um Embedding?}
+
+Um embedding é uma representação numérica do significado de um texto.
+
+\textbf{Analogia:}
+\begin{itemize}
+    \item Texto é como uma descrição verbal de uma pessoa
+    \item Embedding é como uma foto numérica dessa pessoa
+    \item Pessoas similares = fotos similares
+    \item Textos similares = embeddings similares
+\end{itemize}
+
+\subsubsection{Como funciona?}
+
+\begin{enumerate}
+    \item Usamos um modelo pré-treinado (all-MiniLM-L6-v2)
+    \item Passamos o texto para o modelo
+    \item O modelo retorna um vetor de 384 números
+    \item Cada número representa uma ``dimensão'' do significado
+\end{enumerate}
+
+\subsubsection{Função: generate\_embedding}
+
+\begin{lstlisting}
+import torch
+from sentence_transformers import SentenceTransformer
+
+# Detecta se GPU está disponível
+device = "cuda" if torch.cuda.is_available() else "cpu"
+
+# Carrega o modelo
+model = SentenceTransformer("all-MiniLM-L6-v2", device=device)
+
+def generate_embedding(text):
+    """
+    Gera embedding para um texto.
+    
+    Entrada: um texto (string)
+    Saída: um vetor de 384 números
+    """
+    embedding = model.encode(text, convert_to_tensor=False)
+    return embedding.tolist()
+\end{lstlisting}
+
+\subsubsection{Exemplo Prático}
+
+\begin{lstlisting}
+# Dois textos similares
+texto1 = "O gato subiu no telhado"
+texto2 = "O felino está no teto"
+
+emb1 = generate_embedding(texto1)  # [0.2, 0.8, -0.1, 0.5, ...]
+emb2 = generate_embedding(texto2)  # [0.22, 0.79, -0.09, 0.48, ...]
+
+# Os embeddings são muito parecidos! (números próximos)
+
+# Texto diferente
+texto3 = "Amanhã é segunda-feira"
+emb3 = generate_embedding(texto3)  # [-0.5, -0.2, 0.9, ...]
+
+# Este embedding é bem diferente dos dois primeiros
+\end{lstlisting}
+
+\subsubsection{GPU vs CPU}
+
+\begin{itemize}
+    \item \textbf{GPU}: Muito mais rápido (segundos)
+    \item \textbf{CPU}: Lento (minutos)
+\end{itemize}
+
+O código detecta automaticamente se há GPU disponível:
+\begin{itemize}
+    \item Se sim: Usa GPU (muito mais rápido)
+    \item Se não: Usa CPU (mais lento)
+\end{itemize}
+
+% ---------- vector_store.py ----------
+\subsection{vector\_store.py - O Armazenador}
+
+Este arquivo gerencia o banco de dados vetorial.
+
+\subsubsection{O que é um Banco Vetorial?}
+
+Um banco de dados otimizado para armazenar e buscar embeddings rapidamente.
+
+\textbf{Analogia:}
+\begin{itemize}
+    \item Banco normal: ``Encontre o cliente com nome João''
+    \item Banco vetorial: ``Encontre os 4 embeddings mais próximos deste''
+\end{itemize}
+
+\subsubsection{Por que FAISS?}
+
+\begin{itemize}
+    \item Muito rápido mesmo com milhões de vetores
+    \item Usa algoritmos sofisticados para busca eficiente
+    \item Desenvolvido pelo Facebook (Meta)
+\end{itemize}
+
+\subsubsection{Função: add\_chunks}
+
+\begin{lstlisting}
+def add_chunks(chunks):
+    """
+    Adiciona chunks ao banco vetorial.
+    
+    Processo:
+    1. Para cada chunk
+    2. Gera o embedding
+    3. Armazena no FAISS
+    4. Guarda o texto em documents
+    5. Salva em arquivo
+    """
+    
+    for chunk in chunks:
+        # 1. Gera embedding
+        embedding = generate_embedding(chunk)
+        
+        # 2. Converte para formato do FAISS
+        vector = np.array([embedding]).astype("float32")
+        
+        # 3. Adiciona ao índice
+        index.add(vector)
+        
+        # 4. Guarda o texto
+        documents.append(chunk)
+    
+    # 5. Salva em arquivo (persistência)
+    save_persisted_store()
+\end{lstlisting}
+
+\subsubsection{Função: search\_chunks}
+
+\begin{lstlisting}
+def search_chunks(query, top_k=4):
+    """
+    Busca os K chunks mais similares a uma query.
+    
+    Processo:
+    1. Gera embedding da pergunta
+    2. Busca no FAISS pelos K mais próximos
+    3. Retorna os textos desses chunks
+    """
+    
+    # 1. Gera embedding da pergunta
+    query_embedding = generate_embedding(query)
+    query_vector = np.array([query_embedding]).astype("float32")
+    
+    # 2. Busca os K mais próximos
+    distances, indices = index.search(query_vector, top_k)
+    
+    # 3. Pega os textos
+    results = []
+    for idx in indices[0]:
+        results.append(documents[idx])
+    
+    return results
+\end{lstlisting}
+
+\subsubsection{Persistência}
+
+\begin{lstlisting}
+def load_persisted_store():
+    """Carrega índice salvo em arquivo"""
+    if not vector_index.faiss.exists():
+        return False  # Não existe ainda
+    
+    # Carrega do arquivo
+    documents = json.load("documents.json")
+    index = faiss.read_index("vector_index.faiss")
+    
+    return True  # Sucesso
+
+def save_persisted_store():
+    """Salva índice em arquivo"""
+    # Salva os documents em JSON
+    json.dump(documents, "documents.json")
+    
+    # Salva o índice FAISS
+    faiss.write_index(index, "vector_index.faiss")
+\end{lstlisting}
+
+\textbf{Por que persistência?}
+\begin{itemize}
+    \item Não precisa reindexar toda vez
+    \item Muito mais rápido na segunda execução
+    \item Índice é reutilizável
+\end{itemize}
+
+% ---------- llm_api.py ----------
+\subsection{llm\_api.py - O Gerador}
+
+Este arquivo faz o LLM gerar respostas.
+
+\subsubsection{O que é um LLM?}
+
+\begin{itemize}
+    \item LLM = Large Language Model
+    \item É um modelo de IA treinado com bilhões de palavras
+    \item Consegue entender e gerar texto natural
+    \item Exemplos: GPT, ChatGPT, Phi-3
+\end{itemize}
+
+\subsubsection{Variáveis de Configuração}
+
+\begin{lstlisting}
+MODEL_ID = "microsoft/Phi-3-mini-4k-instruct"
+TEMPERATURE = 0.3
+\end{lstlisting}
+
+\begin{itemize}
+    \item \texttt{MODEL\_ID}: Qual modelo usar
+    \item \texttt{TEMPERATURE}: Criatividade vs. Precisão
+\end{itemize}
+
+\subsubsection{O que é Temperature?}
+
+\begin{itemize}
+    \item \textbf{Temperatura = 0.0}: Sempre escolhe a palavra mais provável (preciso)
+    \item \textbf{Temperatura = 0.3}: Levemente criativo (bom para RAG)
+    \item \textbf{Temperatura = 0.7}: Muito criativo (risco de alucinação)
+    \item \textbf{Temperatura = 1.0}: Muito aleatório (impreciso)
+\end{itemize}
+
+Para RAG, usar temperatura baixa (0.0 a 0.3) é melhor.
+
+\subsubsection{Função: ask\_llm}
+
+\begin{lstlisting}
+def ask_llm(context, question, history=None):
+    """
+    Gera resposta do LLM.
+    
+    Parâmetros:
+    - context: chunks recuperados
+    - question: pergunta do usuário
+    - history: perguntas/respostas anteriores (para chat contextual)
+    
+    Processo:
+    1. Monta o sistema prompt (instruções)
+    2. Combina context + question
+    3. Passa para o LLM
+    4. Retorna a resposta
+    """
+    
+    # 1. Sistema de instruções
+    messages = [
+        {
+            "role": "system",
+            "content": (
+                "Você é um sistema RAG.\n"
+                "Responda SOMENTE usando o contexto fornecido.\n"
+                "NÃO invente informações.\n"
+                "..."
+            )
+        },
+        {
+            "role": "user",
+            "content": (
+                f"Contexto:\n{context}\n\n"
+                f"Pergunta:\n{question}"
+            )
+        }
+    ]
+    
+    # 2. Converte para formato do modelo
+    prompt = tokenizer.apply_chat_template(
+        messages,
+        tokenize=False,
+        add_generation_prompt=True
+    )
+    
+    # 3. Tokeniza (converte em números)
+    inputs = tokenizer(prompt, return_tensors="pt")
+    
+    # 4. Move para GPU se disponível
+    inputs = inputs.to(device)
+    
+    # 5. Gera resposta
+    output_ids = model.generate(
+        **inputs,
+        max_new_tokens=120,
+        temperature=TEMPERATURE,
+        do_sample=True,
+        top_p=0.85,
+        repetition_penalty=1.15
+    )
+    
+    # 6. Decodifica (converte de volta para texto)
+    response = tokenizer.decode(
+        output_ids[0],
+        skip_special_tokens=True
+    )
+    
+    return response
+\end{lstlisting}
+
+\subsubsection{GPU vs CPU}
+
+Código detecta automaticamente:
+
+\begin{lstlisting}
+if torch.cuda.is_available():
+    model_kwargs["torch_dtype"] = torch.float16  # GPU: mais rápido
+    print("[INFO] GPU detectada!")
+else:
+    model_kwargs["torch_dtype"] = torch.float32  # CPU: mais lento
+    print("[WARNING] GPU não detectada!")
+\end{lstlisting}
+
+% ---------- rag_pipeline.py ----------
+\subsection{rag\_pipeline.py - O Orquestrador}
+
+Este arquivo coordena todo o pipeline.
+
+\subsubsection{O que faz?}
+
+Conecta três partes:
+\begin{enumerate}
+    \item Recuperação (search\_chunks)
+    \item Prompt (combinação de contexto)
+    \item Geração (ask\_llm)
+\end{enumerate}
+
+\subsubsection{Função: answer\_question}
+
+\begin{lstlisting}
+def answer_question(question, top_k=4, history=None):
+    """
+    Responde uma pergunta usando o pipeline RAG.
+    
+    Processo:
+    1. Recupera chunks similares
+    2. Combina em contexto
+    3. Passa para LLM
+    4. Retorna resposta + chunks (para transparência)
+    """
+    
+    # 1. Recupera
+    retrieved_chunks = search_chunks(question, top_k)
+    
+    # 2. Combina
+    context = "\n\n".join(retrieved_chunks)
+    
+    # 3. Gera
+    response = ask_llm(
+        context,
+        question,
+        history=history
+    )
+    
+    # 4. Retorna
+    return response, retrieved_chunks
+\end{lstlisting}
+
+% ==================== SEÇÃO 5: FLUXO COMPLETO ====================
+\section{Fluxo Completo do Sistema}
+
+\subsection{Primeira Execução}
+
+\begin{enumerate}
+    \item \textbf{app.py inicia}
+    \item \textbf{Tenta carregar índice} → Não existe
+    \item \textbf{Carrega documentos}
+    \begin{itemize}
+        \item \texttt{loaders.py} carrega PDFs/TXTs
+        \item \texttt{chunking.py} divide em chunks
+    \end{itemize}
+    \item \textbf{Gera embeddings}
+    \begin{itemize}
+        \item \texttt{embeddings.py} vetoriza cada chunk
+        \item \texttt{vector\_store.py} armazena no FAISS
+    \end{itemize}
+    \item \textbf{Salva índice} em arquivo
+    \item \textbf{Aguarda perguntas}
+\end{enumerate}
+
+\subsection{Próximas Execuções}
+
+\begin{enumerate}
+    \item \textbf{app.py inicia}
+    \item \textbf{Tenta carregar índice} → Existe!
+    \item \textbf{Pula reindexação} (muito mais rápido)
+    \item \textbf{Aguarda perguntas}
+\end{enumerate}
+
+\subsection{Respondendo uma Pergunta}
+
+\begin{enumerate}
+    \item Usuário digita: ``Quais são os personagens?''
+    \item \textbf{app.py} chama \texttt{answer\_question()}
+    \item \textbf{rag\_pipeline.py}:
+    \begin{enumerate}
+        \item Chama \texttt{search\_chunks(``Quais são os personagens?'')}
+        \item \textbf{vector\_store.py}:
+        \begin{enumerate}
+            \item \textbf{embeddings.py} gera embedding da pergunta
+            \item FAISS busca os 4 chunks mais similares
+            \item Retorna os textos
+        \end{enumerate}
+        \item Combina os chunks em um contexto
+        \item Chama \texttt{ask\_llm(context, question)}
+        \item \textbf{llm\_api.py}:
+        \begin{enumerate}
+            \item Monta prompt com instrução + contexto + pergunta
+            \item Envia para Phi-3
+            \item Phi-3 gera resposta baseada no contexto
+            \item Retorna a resposta
+        \end{enumerate}
+    \end{enumerate}
+    \item Mostra resposta ao usuário
+    \item Armazena no histórico
+\end{enumerate}
+
+% ==================== SEÇÃO 6: PARÂMETROS ====================
+\section{Parâmetros e Configurações}
+
+\subsection{Parâmetros Principais}
+
+\subsubsection{CHUNK\_SIZE (tamanho do chunk)}
+
+\begin{itemize}
+    \item \textbf{Padrão}: 400
+    \item \textbf{Pequeno} (300): Mais chunks, busca mais precisa, mas mais lento
+    \item \textbf{Grande} (500): Menos chunks, mais contexto, possível sobrecarregar
+\end{itemize}
+
+\subsubsection{OVERLAP (sobreposição)}
+
+\begin{itemize}
+    \item \textbf{Padrão}: 80
+    \item \textbf{0}: Sem overlap, rápido mas pode perder contexto
+    \item \textbf{80}: Com overlap, melhor contexto
+    \item \textbf{Até 200}: Overlap maior, muito contexto
+\end{itemize}
+
+\subsubsection{TOP\_K (quantos chunks recuperar)}
+
+\begin{itemize}
+    \item \textbf{Padrão}: 4
+    \item \textbf{2}: Rápido, mas pode faltar contexto
+    \item \textbf{4}: Bom balanço
+    \item \textbf{6+}: Muito contexto, pode ser redundante
+\end{itemize}
+
+\subsubsection{TEMPERATURE (criatividade)}
+
+\begin{itemize}
+    \item \textbf{Padrão}: 0.3
+    \item \textbf{0.0}: Muito preciso, repetitivo
+    \item \textbf{0.3}: Bom para RAG
+    \item \textbf{0.7}: Criativo, pode alucinar
+\end{itemize}
+
+\subsection{Onde Alterar}
+
+\subsubsection{app.py}
+
+\begin{lstlisting}
+# No início do arquivo
+CHUNK_SIZE = 400   # Altere aqui
+OVERLAP = 80       # Altere aqui
+TOP_K = 4          # Altere aqui
+\end{lstlisting}
+
+\subsubsection{llm\_api.py}
+
+\begin{lstlisting}
+# No início do arquivo
+MODEL_ID = "microsoft/Phi-3-mini-4k-instruct"  # Altere aqui
+TEMPERATURE = 0.3                                # Altere aqui
+\end{lstlisting}
+
+% ==================== SEÇÃO 7: ERROS COMUNS ====================
+\section{Erros Comuns e Soluções}
+
+\subsection{``ModuleNotFoundError: No module named 'fitz''}
+
+\textbf{Solução:}
+\begin{lstlisting}
+pip install PyMuPDF
+\end{lstlisting}
+
+\subsection{``CUDA out of memory''}
+
+\textbf{Possíveis causas:}
+\begin{itemize}
+    \item TOP\_K muito grande
+    \item Chunks muito grandes
+    \item Modelo carregado errado
+\end{itemize}
+
+\textbf{Soluções:}
+\begin{enumerate}
+    \item Reduzir TOP\_K para 2 ou 3
+    \item Reduzir CHUNK\_SIZE para 300
+    \item Usar torch.float16 (já automático)
+\end{enumerate}
+
+\subsection{Resposta vazia ou ``Erro na geração''}
+
+\textbf{Possíveis causas:}
+\begin{itemize}
+    \item Nenhum chunk recuperado
+    \item LLM travado
+    \item Contexto vazio
+\end{itemize}
+
+\textbf{Soluções:}
+\begin{enumerate}
+    \item Verificar se documentos foram carregados
+    \item Aumentar TOP\_K
+    \item Checar se os documentos contêm informação relevante
+\end{enumerate}
+
+\subsection{Sistema muito lento}
+
+\textbf{Causa provável:} Usando CPU em vez de GPU
+
+\textbf{Solução:}
+\begin{enumerate}
+    \item Instalar CUDA
+    \item Verificar: \texttt{python -c "import torch; print(torch.cuda.is\_available())"}
+    \item Se retorna \texttt{False}: CUDA não está instalado
+\end{enumerate}
+
+% ==================== SEÇÃO 8: RESUMO VISUAL ====================
+\section{Resumo Visual do Sistema}
+
+\subsection{Componentes}
+
+\begin{table}[h]
+    \centering
+    \begin{tabular}{|l|l|l|}
+        \hline
+        \textbf{Arquivo} & \textbf{Função} & \textbf{Saída} \\
+        \hline
+        loaders.py & Carrega PDFs/TXTs & Texto limpo \\
+        \hline
+        chunking.py & Divide em chunks & Lista de chunks \\
+        \hline
+        embeddings.py & Vetoriza chunks & Vetores (384 números) \\
+        \hline
+        vector\_store.py & Armazena no FAISS & Índice persistente \\
+        \hline
+        llm\_api.py & Gera respostas & Texto natural \\
+        \hline
+        rag\_pipeline.py & Coordena tudo & Resposta final \\
+        \hline
+        app.py & Interface interativa & Chat com usuário \\
+        \hline
+    \end{tabular}
+\end{table}
+
+\subsection{Fluxo de Dados}
+
+\begin{verbatim}
+Documentos (PDF/TXT)
+        ↓ [loaders.py]
+Texto Limpo
+        ↓ [chunking.py]
+Chunks de 400 palavras
+        ↓ [embeddings.py]
+Vetores de 384 dimensões
+        ↓ [vector_store.py]
+Índice FAISS (arquivo)
+        ↓
+[Na próxima pergunta]
+        ↓ [embeddings.py]
+Pergunta vetorizada
+        ↓ [vector_store.py]
+Top-4 chunks similares
+        ↓ [llm_api.py]
+Resposta do LLM
+        ↓
+Usuário vê a resposta
+\end{verbatim}
+
+% ==================== SEÇÃO 9: MELHORIAS FUTURAS ====================
+\section{Melhorias e Otimizações Futuras}
+
+\subsection{Requisitos Não Implementados (Projeto)}
+
+\subsubsection{1. Interface Gráfica (CRÍTICO)}
+
+\textbf{Atual:} CLI (linha de comando com input/print)
+
+\textbf{Melhorado:} Streamlit ou Dash
+
+\begin{lstlisting}
+# Exemplo com Streamlit
+import streamlit as st
+
+st.title("Sistema RAG")
+
+uploaded_file = st.file_uploader("Envie um PDF")
+if uploaded_file:
+    indexar_documento(uploaded_file)
+
+pergunta = st.text_input("Faça uma pergunta")
+if pergunta:
+    resposta, chunks = answer_question(pergunta)
+    st.write("Resposta:", resposta)
+    st.write("Chunks recuperados:", chunks)
+\end{lstlisting}
+
+\textbf{Benefícios:}
+\begin{itemize}
+    \item Interface visual atraente
+    \item Upload de arquivos fácil
+    \item Histórico de conversa visual
+    \item Visualização de chunks recuperados
+\end{itemize}
+
+\subsubsection{2. APIs Externas (CRÍTICO)}
+
+\textbf{Atual:} Modelos locais (CPU/GPU)
+\begin{itemize}
+    \item Embeddings: sentence-transformers (local)
+    \item LLM: Phi-3 (local)
+\end{itemize}
+
+\textbf{Requisito do Projeto:} APIs externas
+
+\textbf{Sugestões:}
+
+\paragraph{Para Embeddings:}
+\begin{itemize}
+    \item OpenAI Embeddings API
+    \item Cohere API
+    \item HuggingFace Inference API
+\end{itemize}
+
+\paragraph{Para LLM:}
+\begin{itemize}
+    \item OpenAI GPT-4 / GPT-3.5
+    \item Cohere Command
+    \item Google PaLM
+    \item Anthropic Claude
+\end{itemize}
+
+\textbf{Exemplo com OpenAI:}
+
+\begin{lstlisting}
+import openai
+
+# Embeddings
+response = openai.Embedding.create(
+    input="Qual é a cor do céu?",
+    model="text-embedding-3-small"
+)
+embedding = response['data'][0]['embedding']
+
+# LLM
+response = openai.ChatCompletion.create(
+    model="gpt-3.5-turbo",
+    messages=[{"role": "user", "content": prompt}]
+)
+resposta = response['choices'][0]['message']['content']
+\end{lstlisting}
+
+\textbf{Vantagens:}
+\begin{itemize}
+    \item Não precisa de GPU local
+    \item Modelos mais poderosos
+    \item Atende requisito do projeto
+\end{itemize}
+
+\textbf{Desvantagens:}
+\begin{itemize}
+    \item Custa dinheiro (API cobrada)
+    \item Dados vão para servidor externo
+    \item Depende de internet
+\end{itemize}
+
+\subsection{Otimizações de Código}
+
+\subsubsection{1. Cache de Embeddings}
+
+\textbf{Problema Atual:} Regera embedding sempre que processa
+
+\textbf{Solução:}
+
+\begin{lstlisting}
+from functools import lru_cache
+
+@lru_cache(maxsize=1000)
+def generate_embedding(text):
+    """Com cache, texto iguais reutilizam embedding"""
+    embedding = model.encode(text)
+    return embedding.tolist()
+\end{lstlisting}
+
+\textbf{Ganho:} 10-100x mais rápido em buscas repetidas
+
+\subsubsection{2. Tratamento de Erros Robusto}
+
+\textbf{Atual:} Mínimo, falhas geralmente travam o programa
+
+\textbf{Melhorado:}
+
+\begin{lstlisting}
+def load_document_safe(file_path):
+    """Versão segura que trata erros"""
+    try:
+        if not Path(file_path).exists():
+            raise FileNotFoundError(f"Arquivo não encontrado: {file_path}")
+        
+        text = load_document(file_path)
+        
+        if not text:
+            raise ValueError(f"Arquivo vazio: {file_path}")
+        
+        return text
+    
+    except FileNotFoundError as e:
+        logger.error(f"Erro de arquivo: {e}")
+        return None
+    
+    except Exception as e:
+        logger.error(f"Erro inesperado: {e}")
+        return None
+\end{lstlisting}
+
+\subsubsection{3. Logging Detalhado}
+
+\textbf{Adicionar:}
+
+\begin{lstlisting}
+import logging
+
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
+
+# Usar em todo o código
+logger.info("Iniciando carregamento de documentos")
+logger.warning("Índice não encontrado, reindexando")
+logger.error("Erro ao gerar embedding")
+\end{lstlisting}
+
+\textbf{Benefício:} Rastrear exatamente o que acontece
+
+\subsubsection{4. Validação de Entrada}
+
+\textbf{Adicionar:}
+
+\begin{lstlisting}
+def validate_question(question):
+    """Valida pergunta antes de processar"""
+    
+    # Não vazio
+    if not question or len(question.strip()) == 0:
+        raise ValueError("Pergunta não pode estar vazia")
+    
+    # Não muito longa
+    if len(question) > 5000:
+        raise ValueError("Pergunta muito longa (máx 5000 caracteres)")
+    
+    # Não caracteres inválidos
+    if not question.isascii() and not question.isidentifier():
+        # Permitir caracteres especiais em português
+        pass
+    
+    return question.strip()
+
+# Usar no app
+pergunta_validada = validate_question(pergunta)
+\end{lstlisting}
+
+\subsubsection{5. Configuração por Arquivo}
+
+\textbf{Ao invés de:}
+
+\begin{lstlisting}
+# No código
+CHUNK_SIZE = 400
+TOP_K = 4
+TEMPERATURE = 0.3
+\end{lstlisting}
+
+\textbf{Fazer:}
+
+\begin{lstlisting}
+# Arquivo: config.yaml
+chunking:
+  chunk_size: 400
+  overlap: 80
+
+retrieval:
+  top_k: 4
+  similarity_threshold: 0.5
+
+generation:
+  temperature: 0.3
+  max_tokens: 120
+  model_id: "microsoft/Phi-3-mini-4k-instruct"
+\end{lstlisting}
+
+\begin{lstlisting}
+# Código: config.py
+import yaml
+
+def load_config(config_path="config.yaml"):
+    with open(config_path) as f:
+        config = yaml.safe_load(f)
+    return config
+
+# Usar
+config = load_config()
+CHUNK_SIZE = config['chunking']['chunk_size']
+TOP_K = config['retrieval']['top_k']
+\end{lstlisting}
+
+\textbf{Vantagem:} Não precisa editar código para mudar parâmetros
+
+\subsubsection{6. Suporte a Múltiplos Formatos}
+
+\textbf{Atual:} Apenas PDF e TXT
+
+\textbf{Adicionar:}
+
+\begin{itemize}
+    \item DOCX (Word)
+    \item XLSX (Excel)
+    \item PPTX (PowerPoint)
+    \item HTML
+    \item Markdown
+\end{itemize}
+
+\begin{lstlisting}
+# Exemplo: DOCX
+from docx import Document
+
+def load_docx(file_path):
+    doc = Document(file_path)
+    text = "\n".join([p.text for p in doc.paragraphs])
+    return text
+
+# Adicionar ao loaders.py
+if suffix == ".docx":
+    text = load_docx(file_path)
+\end{lstlisting}
+
+\subsubsection{7. Testes Unitários}
+
+\textbf{Criar:}
+
+\begin{lstlisting}
+# tests/test_chunking.py
+import pytest
+from src.chunking import chunk_text
+
+def test_chunk_size():
+    texto = " ".join(["palavra"] * 500)
+    chunks = chunk_text(texto, chunk_size=10, overlap=2)
+    
+    assert len(chunks) > 0
+    assert len(chunks[0].split()) >= 10
+
+def test_overlap():
+    chunks = chunk_text("a b c d e f g h i j", chunk_size=3, overlap=1)
+    # Verificar se há overlap
+    assert "d" in chunks[0] or "d" in chunks[1]
+
+# Rodar testes
+pytest tests/
+\end{lstlisting}
+
+\textbf{Benefício:} Garante que o código funciona
+
+\subsubsection{8. Documentação Inline}
+
+\textbf{Adicionar docstrings em formato Google:}
+
+\begin{lstlisting}
+def chunk_text(text, chunk_size=400, overlap=80):
+    """Divide texto em chunks com sobreposição.
+    
+    Args:
+        text (str): Texto a dividir
+        chunk_size (int): Tamanho de cada chunk em palavras. Default 400.
+        overlap (int): Sobreposição em palavras. Default 80.
+    
+    Returns:
+        list: Lista de strings (chunks)
+    
+    Raises:
+        ValueError: Se chunk_size < 0 ou overlap < 0
+        TypeError: Se text não é string
+    
+    Examples:
+        >>> chunks = chunk_text("palavra1 palavra2 ... palavra500", 10, 2)
+        >>> len(chunks) > 0
+        True
+    """
+    ...
+\end{lstlisting}
+
+\subsubsection{9. Monitoramento de Performance}
+
+\textbf{Adicionar métricas:}
+
+\begin{lstlisting}
+import time
+
+def measure_time(func):
+    def wrapper(*args, **kwargs):
+        start = time.time()
+        result = func(*args, **kwargs)
+        elapsed = time.time() - start
+        logger.info(f"{func.__name__} levou {elapsed:.2f}s")
+        return result
+    return wrapper
+
+@measure_time
+def add_chunks(chunks):
+    ...
+
+@measure_time
+def search_chunks(query, top_k=3):
+    ...
+\end{lstlisting}
+
+\textbf{Resultado:}
+\begin{verbatim}
+add_chunks levou 45.32s
+search_chunks levou 0.15s
+\end{verbatim}
+
+\subsubsection{10. Chat Melhorado}
+
+\textbf{Atual:} Histórico simples
+
+\textbf{Melhorado:}
+
+\begin{itemize}
+    \item Salvar conversa em arquivo
+    \item Retomar conversa anterior
+    \item Feedback do usuário (resposta boa/ruim)
+    \item Sugestões automáticas de perguntas
+\end{itemize}
+
+\begin{lstlisting}
+# Salvar conversa
+import json
+from datetime import datetime
+
+def save_conversation(history):
+    filename = f"conversations/{datetime.now():%Y%m%d_%H%M%S}.json"
+    with open(filename, 'w') as f:
+        json.dump(history, f, indent=2)
+
+# Carregar conversa anterior
+def load_conversation(filename):
+    with open(filename) as f:
+        return json.load(f)
+\end{lstlisting}
+
+\subsubsection{11. Compressão de Contexto}
+
+\textbf{Problema:} Contexto muito longo pode confundir o LLM
+
+\textbf{Solução:}
+
+\begin{lstlisting}
+def compress_context(chunks, max_length=2000):
+    """Comprime chunks para não exceder tamanho máximo"""
+    context = ""
+    for chunk in chunks:
+        if len(context) + len(chunk) <= max_length:
+            context += chunk + "\n\n"
+        else:
+            break
+    return context
+\end{lstlisting}
+
+\subsubsection{12. Busca Híbrida}
+
+\textbf{Atual:} Busca apenas por similaridade vetorial
+
+\textbf{Melhorado:} Combinar busca vetorial + busca por palavras-chave
+
+\begin{lstlisting}
+def search_hybrid(query, top_k=4):
+    """Busca híbrida: vetorial + keyword"""
+    
+    # 1. Busca vetorial
+    vector_results = search_chunks(query, top_k)
+    
+    # 2. Busca por palavras-chave
+    keywords = query.split()
+    keyword_results = [
+        doc for doc in documents
+        if any(kw in doc.lower() for kw in keywords)
+    ]
+    
+    # 3. Combina e ordena
+    combined = vector_results + keyword_results
+    unique = list(dict.fromkeys(combined))  # Remove duplicatas
+    
+    return unique[:top_k]
+\end{lstlisting}
+
+\subsection{Resumo das Melhorias}
+
+\begin{table}[h]
+    \centering
+    \begin{tabular}{|l|l|l|}
+        \hline
+        \textbf{Melhoria} & \textbf{Dificuldade} & \textbf{Impacto} \\
+        \hline
+        Interface Streamlit & Média & Alto (requisito) \\
+        APIs Externas & Alta & Alto (requisito) \\
+        Cache de Embeddings & Baixa & Alto (velocidade) \\
+        Tratamento de Erros & Média & Médio (robustez) \\
+        Logging & Baixa & Médio (debug) \\
+        Validação de Entrada & Baixa & Médio (segurança) \\
+        Config. por Arquivo & Média & Médio (flexibilidade) \\
+        Testes Unitários & Média & Médio (confiabilidade) \\
+        Documentação & Baixa & Médio (manutenção) \\
+        Chat Melhorado & Média & Baixo (UX) \\
+        Busca Híbrida & Alta & Alto (precisão) \\
+        Performance & Média & Alto (velocidade) \\
+        \hline
+    \end{tabular}
+\end{table}
+
+
+\subsection{O que você aprendeu}
+
+\begin{enumerate}
+    \item \textbf{RAG é um pipeline}: Recuperação + Geração
+    \item \textbf{Cada arquivo tem um propósito}: Divisão de responsabilidades
+    \item \textbf{Tudo se conecta}: Dados fluem de um arquivo para outro
+    \item \textbf{Parâmetros importam}: Ajuste chunk\_size, top\_k, temperature
+    \item \textbf{GPU é muito mais rápido}: Use quando disponível
+    \item \textbf{Persistência economiza tempo}: Índice é reutilizável
+\end{enumerate}
+
+\subsection{Próximos Passos}
+
+\begin{enumerate}
+    \item Execute o sistema com os parâmetros padrão
+    \item Teste os experimentos (altere CHUNK\_SIZE, TOP\_K, etc)
+    \item Meça o tempo e a qualidade das respostas
+    \item Documente os resultados em slides
+    \item Implemente a interface Streamlit (requisito do projeto)
+\end{enumerate}
+
+\subsection{Dica Final}
+
+\textbf{Comece simples, teste uma coisa por vez.}
+
+Altere um parâmetro, veja o resultado, anote. Depois altere outro. Assim você entende o sistema de verdade.
+
+\end{document}
