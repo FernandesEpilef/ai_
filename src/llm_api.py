@@ -3,7 +3,7 @@ import torch
 
 # Ajuste este bloco para testar outros modelos ou temperaturas.
 MODEL_ID = "microsoft/Phi-3-mini-4k-instruct"
-TEMPERATURE = 0.9
+TEMPERATURE = 0.4
 
 tokenizer = AutoTokenizer.from_pretrained(MODEL_ID)
 
@@ -44,10 +44,10 @@ def ask_llm(context, question, history=None):
                 "Você é um sistema RAG.\n"
                 "Responda SOMENTE usando o contexto fornecido.\n"
                 "NÃO invente informações.\n"
-                "NÃO faça interpretações psicológicas.\n"
+                #"NÃO faça interpretações psicológicas.\n"
                 "Responda em português.\n"
                 "Use no máximo 5 tópicos.\n"
-                "Cada tópico deve possuir apenas 1 frase curta.\n"
+                #"Cada tópico deve possuir apenas 1 frase curta.\n"
                 "Se não houver informação suficiente, responda exatamente:\n"
                 "'Não encontrei informação suficiente nos textos.'"
             )
@@ -76,14 +76,14 @@ def ask_llm(context, question, history=None):
     try:
         output_ids = model.generate(
             **inputs,
-            max_new_tokens=120,
+            max_new_tokens=224,
             temperature=TEMPERATURE,
             do_sample=True,
-            top_p=0.85,
-            repetition_penalty=1.15,
-            eos_token_id=tokenizer.eos_token_id,
-            pad_token_id=tokenizer.eos_token_id,
-            use_cache=True
+            top_p=0.85,             # impede o modelo de alucinar (filtro de sanidade). [calculo probabilistico de melhores proximas palavras]
+            repetition_penalty=1.15, # penaliza repetições (aprendizado por reforço(?)).
+            eos_token_id=tokenizer.eos_token_id, # sinaliza o fim da resposta para o modelo, evitando respostas muito longas ou truncadas.
+            pad_token_id=tokenizer.eos_token_id, # para várias perguntas; o modelo precisa preencher o espaço vaxio.
+            use_cache=True # permite que o modelo use o cache de atenção para acelerar a geração, especialmente em GPUs.
         )
 
         generated_ids = output_ids[0][inputs["input_ids"].shape[1]:]
