@@ -1,4 +1,5 @@
 .venv/
 .env
 .data/
-.DOCUMENTATION_RAG.tex
+DOCUMENTACAO_RAG.tex
+alucinacoes.txt
