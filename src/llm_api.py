@@ -2,8 +2,8 @@ from transformers import AutoTokenizer, AutoModelForCausalLM
 import torch
 
 # Ajuste este bloco para testar outros modelos ou temperaturas.
-MODEL_ID = "microsoft/Phi-3-mini-4k-instruct"
-TEMPERATURE = 0.4
+MODEL_ID = "Polygl0t/Tucano2-qwen-3.7B-Instruct"
+TEMPERATURE = 0.001
 
 tokenizer = AutoTokenizer.from_pretrained(MODEL_ID)
 
