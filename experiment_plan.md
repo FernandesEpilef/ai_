@@ -114,7 +114,27 @@ O que medir:
     nós. Infelizmente notei essa impressão de desinteresse, mas, de verdade, está tudo bem. A forma como me procuraste na quinta não foi uma das melhores. Meio que só seguisse com tua vida e, caso me visse, faria uma intervenção. Não senti que você realmente queria me ver. Deverias ter sido, você, mais clara. Muito mais. Nós dois temos que melhorar a comunicação. Está ficando muito difícil. E, infelizmente, está sendo um pouco difícil para a fazer o Entendi. Pensei que você tivesse chamado ele e só
     Digite sua pergunta: 
 
+### chuck_size = 512
 
+Digite sua pergunta: quais problemas de comunicação aparecem no texto?
+
+RESPOSTA:
+Problemas identificados incluem falta de confiança entre os parceiros (você quer estar constantemente à frente), comparação inútil com outras pessoas, dificuldade em manter distância emocional/comunicação ("ele" parece menos importante) e insatisfação generalizada devido a "falhas constantes". Há também indiretamente mencionadas questões sobre interferências nas vidas dos participantes sem buscar resolução adequada ('desentendimentos', 'd
+
+CHUNKS RECUPERADOS:
+
+[CHUNK 1]
+não quero e nem sou o centro do seu mundo. Você tem que começar a se entender melhor e separar muito bem isso, você tem vários amigos, e se a vida não fosse interessante ao lado deles, você não passaria o dia com eles. Você realmente tem que aprender a lidar na terapia com essa dependência e demandar energia para outros locais. Porque nem de longe isso é uma amizade saudável. Eu sempre disse e digo que comunicação é a chave de qualquer relação, mas essa comunicação aqui que a gente tem faz tempo,
+
+[CHUNK 2]
+normal do cotidiano com alguma pessoa, não algo que sempre tem um problema, um “e se”. Você se comparar com outra pessoa da minha vida é a coisa mais ridícula que existe, e você deveria tratar na terapia o porquê você sempre vai querer ser o “centro” das atenções na vida de quem ama. E porque não sabe separar as coisas. É bom você tentar chegar em algum lugar nisso, porque como já bem pontuei eu não suporto mais ouvir esse tópico, porque realmente, não cabe a mim te explicar nada disso. Eu acho
+
+[CHUNK 3]
+e digo que comunicação é a chave de qualquer relação, mas essa comunicação aqui que a gente tem faz tempo, nunca vai ser a chave dessa amizade. E quando eu me refiro a comunicação é a chave de alguma relação sempre me referi a namoro, casamento. Uma comunicação de amizade não chega nem a 10% de uma comunicação de namoro. E caso você ainda não tenha percebido, a gente sempre está conversando e nunca chegando a algum lugar. Isso que eu acho deveras interessante é desgastante. Não tem porque eu sentir
+
+[CHUNK 4]
+nós. Infelizmente notei essa impressão de desinteresse, mas, de verdade, está tudo bem. A forma como me procuraste na quinta não foi uma das melhores. Meio que só seguisse com tua vida e, caso me visse, faria uma intervenção. Não senti que você realmente queria me ver. Deverias ter sido, você, mais clara. Muito mais. Nós dois temos que melhorar a comunicação. Está ficando muito difícil. E, infelizmente, está sendo um pouco difícil para a fazer o Entendi. Pensei que você tivesse chamado ele e só
+Digite sua pergunta: 
 
 ### Experimento 2: Número de segmentos recuperados (`top_k`)
 

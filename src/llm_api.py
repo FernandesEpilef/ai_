@@ -7,24 +7,26 @@ TEMPERATURE = 0.3
 
 tokenizer = AutoTokenizer.from_pretrained(MODEL_ID)
 
-model_kwargs = {"device_map": "auto"}
-if torch.cuda.is_available():
+device = "cuda" if torch.cuda.is_available() else "cpu"
+
+model_kwargs = {}
+if device == "cuda":
     model_kwargs["torch_dtype"] = torch.float16
-    print("[INFO] GPU detectada. Usando CUDA com float16 para maior velocidade.")
+    print("[INFO] GPU detectada. Forçando o modelo para a Placa de Vídeo.")
 else:
     model_kwargs["torch_dtype"] = torch.float32
     print("[WARNING] GPU não detectada. Usando CPU (mais lento).")
 
-model = AutoModelForCausalLM.from_pretrained(MODEL_ID, **model_kwargs)
+model = AutoModelForCausalLM.from_pretrained(MODEL_ID, **model_kwargs).to(device)
 model.eval()
 
-
+"""""
 def _model_device():
     try:
         return next(model.parameters()).device
     except StopIteration:
         return torch.device("cpu")
-
+""" 
 def ask_llm(context, question, history=None):
     history_text = ""
     if history:
@@ -69,7 +71,7 @@ def ask_llm(context, question, history=None):
     )
 
     inputs = tokenizer(prompt, return_tensors="pt")
-    inputs = inputs.to(_model_device())
+    inputs = inputs.to(device)
 
     try:
         output_ids = model.generate(

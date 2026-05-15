@@ -8,7 +8,7 @@ from src.rag_pipeline import answer_question
 
 # Parâmetros de experimento: altere aqui para testar diferentes configurações.
 # Não é necessário editar src/chunking.py quando mudar CHUNK_SIZE ou OVERLAP aqui.
-CHUNK_SIZE = 500
+CHUNK_SIZE = 512
 OVERLAP = 80
 TOP_K = 4
 
